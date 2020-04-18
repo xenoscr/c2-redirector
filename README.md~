@@ -26,7 +26,6 @@ aiohttp
 ```
 usage: c2-redirector.py [-h] [-b BIND] [-l LISTEN] [-d DESTINATION] [-p PORT]
                         [-s SECURE] [-c CERTIFICATE] [-k KEY] [-i INSECURE]
-                        [--cloakhost CLOAKHOST] [--cloakport CLOAKPORT]
 
 Simple HTTP/HTTPS redirection script based on aiohttp module.
 
@@ -47,12 +46,6 @@ optional arguments:
   -k KEY, --key KEY     The path to the key file, required if "--secure 1".
   -i INSECURE, --insecure INSECURE
                         Force python to accept insecure ssl certificates.
-  --cloakhost CLOAKHOST
-                        A host running a web server that will answer instead
-                        of the C2 server when 404s are encountered.
-  --cloakport CLOAKPORT
-                        The port that the cloak host web server is listening
-                        on.
 ```
 
 ### Example 1: Simple HTTP Redirection
