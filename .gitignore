@@ -132,3 +132,8 @@ dmypy.json
 *.crt
 *.key
 *.csr
+
+# Vim temp files
+*~
+*.swp
+*.swo
