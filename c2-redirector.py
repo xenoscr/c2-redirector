@@ -34,19 +34,20 @@ async def forwardRequest(request, useSsl=False):
             body = await response.read()
             headers = response.headers
             status = response.status
-    if status == 200 and not cloakingHost:
-            return headers, status, body
-    elif cloakingHost:
-        logging.debug('C2 Server responded with with {} status, trying the cloaking server.'.format(status))
-        reqHeaders['Host'] = cloakHost
-        async with aiohttp.ClientSession(auto_decompress=False) as cloakSession:
-            async with cloakSession.get(cloakURL, ssl=sslcontext, headers=reqHeaders, data=data) as cloakResponse:
-                cloakBody = await cloakResponse.read()
-                cloakHeaders = cloakResponse.headers
-                cloakStatus = cloakResponse.status
-                return cloakHeaders, cloakStatus, cloakBody
-    else:
+    if status == 200:
         return headers, status, body
+    else:
+        if cloakingHost:
+            logging.debug('C2 Server responded with with {} status, trying the cloaking server.'.format(status))
+            reqHeaders['Host'] = cloakHost
+            async with aiohttp.ClientSession(auto_decompress=False) as cloakSession:
+                async with cloakSession.get(cloakURL, ssl=sslcontext, headers=reqHeaders, data=data) as cloakResponse:
+                    cloakBody = await cloakResponse.read()
+                    cloakHeaders = cloakResponse.headers
+                    cloakStatus = cloakResponse.status
+                    return cloakHeaders, cloakStatus, cloakBody
+        else:
+            return headers, status, body
 
 async def parseHeaders(headers):
     returnHeaders = {}
